@@ -6,7 +6,7 @@
 
 -include_lib("xmerl/include/xmerl.hrl").
 
--record(state, {hosts=initializing}).
+-record(state, {hosts=undefined}).
 
 %% ------------------------------------------------------------------
 %% API Function Exports
@@ -49,12 +49,12 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info(scan, State) ->
+handle_info(scan, State=#state{hosts=PrevHosts}) ->
     os:cmd("nmap -oX /tmp/ouroffice.xml -sP " ++ ouroffice:get_env(subnet, "192.168.10.0/24")),
     lager:debug("Scan done."),
     {RootElem, _} = xmerl_scan:file("/tmp/ouroffice.xml"),
     Hosts = [hostinfo(H) || H <- xmerl_xpath:string("//host[status[@state=\"up\"]]", RootElem)],
-    ouroffice_logic:hosts_update(Hosts),
+    ouroffice_logic:hosts_update(PrevHosts, Hosts),
     {noreply, queue_scan(State#state{hosts=Hosts})};
 
 handle_info(_Info, State) ->

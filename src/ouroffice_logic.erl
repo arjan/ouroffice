@@ -8,7 +8,7 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/0, hosts_update/1]).
+-export([start_link/0, hosts_update/2]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -24,8 +24,8 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-hosts_update(List) ->
-    gen_server:cast(?SERVER, {hosts_update, List}).
+hosts_update(PrevList, List) ->
+    gen_server:cast(?SERVER, {hosts_update, PrevList, List}).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
@@ -37,9 +37,10 @@ init(Args) ->
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
-handle_cast({hosts_update, List}, State) ->
+handle_cast({hosts_update, PrevList, List}, State) ->
     lager:debug("Hosts update, ~p", [List]),
-    [update_host(H) || H <- List],
+    First = PrevList =:= undefined,
+    [update_host(H, First) || H <- List],
     {noreply, State};
 
 handle_cast(_Msg, State) ->
@@ -59,14 +60,14 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 
 
-update_host(Host) ->
+update_host(Host, First) ->
     All = ouroffice:get_env(hostname_to_user, []),
     Hostname = proplists:get_value(hostname, Host),
     case proplists:lookup(Hostname, All) of
         {Hostname, Username} ->
             case buffalo:queue(ouroffice_notifier, user_offline, [Username], ouroffice:get_env(user_timeout, ?USER_TIMEOUT)) of
                 {ok, new} ->
-                    ouroffice_notifier:user_online(Username);
+                    ouroffice_notifier:user_online(Username, First);
                 {ok, existing} ->
                     nop
             end;

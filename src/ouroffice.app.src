@@ -7,6 +7,8 @@
                   kernel,
                   stdlib,
                   lager,
+                  inets,
+                  ssl,
                   buffalo
                  ]},
   {mod, { ouroffice_app, []}},
@@ -20,6 +22,13 @@
          {user_timeout, 120000},
          {poll_interval, 5000},
 
-         {subnet, "192.168.10.0/24"}
+         {subnet, "192.168.10.0/24"},
+
+         {twitter_ckey, ""},
+         {twitter_csec, ""},
+         
+         {twitter_token, ""},
+         {twitter_secret, ""}
+         
         ]}
  ]}.
