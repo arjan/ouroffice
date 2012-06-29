@@ -1,0 +1,23 @@
+{application, ouroffice,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  lager,
+                  buffalo
+                 ]},
+  {mod, { ouroffice_app, []}},
+  {env, [
+         {hostname_to_user,
+          [
+           {<<"macbook.lan">>, <<"Francisco">>},
+           {<<"James-Bryan-Gravess-MacBook-Pro.local">>, <<"James">>},
+           {<<"Eric-Holms-MacBook-Pro-2.local">>, <<"Eric">>},
+           {<<"ixion.lan">>, <<"Arjan">>}
+          ]
+         }
+        ]}
+ ]}.
