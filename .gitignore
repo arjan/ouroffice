@@ -6,3 +6,4 @@ ebin
 *~
 dev/*
 doc/*
+/dev.config

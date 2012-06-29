@@ -13,11 +13,13 @@
   {env, [
          {hostname_to_user,
           [
-           {<<"macbook.lan">>, <<"Francisco">>},
-           {<<"James-Bryan-Gravess-MacBook-Pro.local">>, <<"James">>},
-           {<<"Eric-Holms-MacBook-Pro-2.local">>, <<"Eric">>},
-           {<<"ixion.lan">>, <<"Arjan">>}
+           {<<"hostname.local">>, <<"Username">>}
           ]
-         }
+         },
+
+         {user_timeout, 120000},
+         {poll_interval, 5000},
+
+         {subnet, "192.168.10.0/24"}
         ]}
  ]}.

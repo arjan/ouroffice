@@ -50,10 +50,11 @@ handle_cast(_Msg, State) ->
     {noreply, State}.
 
 handle_info(scan, State) ->
-    os:cmd("nmap -oX /tmp/ouroffice.xml -sP 192.168.10.0/24"),
+    os:cmd("nmap -oX /tmp/ouroffice.xml -sP " ++ ouroffice:get_env(subnet, "192.168.10.0/24")),
     lager:debug("Scan done."),
     {RootElem, _} = xmerl_scan:file("/tmp/ouroffice.xml"),
     Hosts = [hostinfo(H) || H <- xmerl_xpath:string("//host[status[@state=\"up\"]]", RootElem)],
+    ouroffice_logic:hosts_update(Hosts),
     {noreply, queue_scan(State#state{hosts=Hosts})};
 
 handle_info(_Info, State) ->
