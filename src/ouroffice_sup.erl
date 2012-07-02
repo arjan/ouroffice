@@ -26,7 +26,8 @@ start_link() ->
 init([]) ->
     Children = [
                 ?CHILD(ouroffice_scanner, worker),
-                ?CHILD(ouroffice_logic, worker)
+                ?CHILD(ouroffice_logic, worker),
+                ?CHILD(ouroffice_notifier, worker)
                ],
     {ok, { {one_for_one, 5, 10}, Children} }.
 

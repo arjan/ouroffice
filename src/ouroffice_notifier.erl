@@ -31,7 +31,7 @@ start_link() ->
 user_online(Username) ->
     user_online(Username, false).
 
-user_online(Username, true) ->
+user_online(_Username, true) ->
     ignore;
 user_online(Username, false) ->
     lager:info("User online!!!! ~p", [Username]),
@@ -55,7 +55,7 @@ handle_cast({notify_online, Username}, State) ->
     Template = lists:nth(random:uniform(length(Reasons)), Reasons),
     Status = lists:flatten(io_lib:format(Template, [Username])),
     twitter_status(Status),
-    lager:notice("Posted: ~s", [Status]),
+    lager:info("Posted: ~s", [Status]),
     {noreply, State};
     
 handle_cast(_Msg, State) ->
