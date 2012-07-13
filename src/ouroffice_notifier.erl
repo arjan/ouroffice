@@ -103,10 +103,12 @@ day_part() ->
         {_, {H, _, _}} when H >= 13, H =< 17 ->
             afternoon;
         {_, {H, _, _}} when H >= 18, H =< 23 ->
-            night
+            evening
     end.
 
                         
+online_messages(night) ->
+    ["Do I see ~s sneaking in the office there? Go home, dude!"];
     
 online_messages(morning) ->
     ["~s appeared at the office. Early start!",
@@ -117,6 +119,4 @@ online_messages(afternoon) ->
      "~s appeared at the office. Better late than never.. :-)"
     ];
 online_messages(evening) ->
-    ["~s is clearly on an interesting working schedule, he just came in!"];
-online_messages(night) ->
-    ["Do I see ~s sneaking in the office there? Go home, dude!"].
+    ["~s is clearly on an interesting working schedule, he just came in!"].
