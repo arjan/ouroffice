@@ -80,7 +80,7 @@ twitter_consumer() ->
      hmac_sha1}.
 
 twitter_status(Update) ->
-    case oauth:post("https://api.twitter.com/statuses/update.json",
+    case oauth:post("https://api.twitter.com/1.1/statuses/update.json",
                     [{status, Update}],
                     twitter_consumer(),
                     ouroffice:get_env(twitter_token, ""),
