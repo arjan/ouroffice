@@ -89,6 +89,7 @@ hostinfo(HostElem) ->
 
     X = os:cmd(binary_to_list(iolist_to_binary(["arp -a ", Addr]))),
     {Hostname, Mac} = case string:tokens(X, " ") of
+                          [] -> {FallbackHostname, undefined};
                           ["arp:"|_] -> {FallbackHostname, undefined};
                           [H, _, _, M|_] -> {list_to_binary(H), list_to_binary(M)}
                       end,
