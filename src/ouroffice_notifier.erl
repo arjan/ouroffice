@@ -96,13 +96,15 @@ twitter_status(Update) ->
 
 day_part() ->
     case calendar:local_time() of
-        {_, {H, _, _}} when H >= 0, H =< 6 ->
+        {_, {H, _, _}} when H >= 0, H < 7 ->
             night;
-        {_, {H, _, _}} when H >= 7, H =< 12 ->
+        {_, {H, _, _}} when H >= 7, H < 12 ->
             morning;
-        {_, {H, _, _}} when H >= 13, H =< 17 ->
+        {_, {H, _, _}} when H >= 12, H < 15 ->
+            noon;
+        {_, {H, _, _}} when H >= 15, H < 19 ->
             afternoon;
-        {_, {H, _, _}} when H >= 18, H =< 23 ->
+        {_, {H, _, _}} when H >= 19, H =< 23 ->
             evening
     end.
 
@@ -114,9 +116,16 @@ online_messages(morning) ->
     ["~s appeared at the office. Early start!",
      "I see ~s is up early at @ouroffice... give that guy some coffee!",
      "Is ~s early for work, or did he never leave?"];
-online_messages(afternoon) ->
+online_messages(noon) ->
     ["Hey, ~s decided to do some work here. Just in time for lunch!",
+     "~s appeared at the office. Did he bring lunch?"
+    ];
+online_messages(afternoon) ->
+    ["Hey, ~s decided to show up. Just in time for beer!",
+     "Maybe ~s is still hungover from yesterday? He only just arrived at the office..."
      "~s appeared at the office. Better late than never.. :-)"
     ];
 online_messages(evening) ->
-    ["~s is clearly on an interesting working schedule, he just came in!"].
+    [
+     "~s is clearly on an interesting working schedule, he just came in!"
+    ].
