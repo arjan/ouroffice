@@ -28,16 +28,16 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-user_online(Username) ->
-    user_online(Username, false).
+user_online(User) ->
+    user_online(User, false).
 
-user_online(_Username, true) ->
+user_online(_User, true) ->
     ignore;
-user_online(Username, false) ->
-    lager:info("User online!!!! ~p", [Username]),
-    gen_server:cast(?SERVER, {notify_online, Username}).
+user_online(User, false) ->
+    lager:info("User online!!!! ~p", [User]),
+    gen_server:cast(?SERVER, {notify_online, User}).
 
-user_offline(Username) ->
+user_offline({Username, _Gender}) ->
     lager:info("User offline.... ~p", [Username]).
 
 %% ------------------------------------------------------------------
@@ -50,10 +50,23 @@ init(Args) ->
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
-handle_cast({notify_online, Username}, State) ->
+handle_cast({notify_online, {Username, Gender}}, State) ->
     Reasons = online_messages(day_part()),
     Template = lists:nth(random:uniform(length(Reasons)), Reasons),
-    Status = lists:flatten(io_lib:format(Template, [Username])),
+
+    HeShe = case Gender of
+                m -> <<"he">>;
+                f -> <<"she">>
+            end,
+
+    Replace = [{username, Username}, {heshe, HeShe}],
+
+    Status = lists:foldl(fun({K, V}, Acc) ->
+                                 re:replace(Acc, "{" ++ atom_to_list(K) ++ "}", V, [{return, list}])
+                         end,
+                         Template,
+                         Replace),
+                           
     twitter_status(Status),
     lager:info("Posted: ~s", [Status]),
     {noreply, State};
@@ -110,22 +123,22 @@ day_part() ->
 
                         
 online_messages(night) ->
-    ["Do I see ~s sneaking in the office there? Go home, dude!"];
+    ["Do I see {username} sneaking in the office there? Go home, dude!"];
     
 online_messages(morning) ->
-    ["~s appeared at the office. Early start!",
-     "I see ~s is up early at @ouroffice... give that guy some coffee!",
-     "Is ~s early for work, or did he never leave?"];
+    ["{username} appeared at the office. Early start!",
+     "I see {username} is up early at @ouroffice... give that {guygirl} some coffee!",
+     "Is {username} early for work, or did {heshe} never leave?"];
 online_messages(noon) ->
-    ["Hey, ~s decided to do some work here. Just in time for lunch!",
-     "~s appeared at the office. Did he bring lunch?"
+    ["Hey, {username} decided to do some work here. Just in time for lunch!",
+     "{username} appeared at the office. Did {heshe} bring lunch?"
     ];
 online_messages(afternoon) ->
-    ["Hey, ~s decided to show up. Just in time for beer!",
-     "Maybe ~s is still hungover from yesterday? He only just arrived at the office..."
-     "~s appeared at the office. Better late than never.. :-)"
+    ["Hey, {username} decided to show up. Just in time for beer!",
+     "Maybe {username} is still hungover from yesterday? {heshe} only just arrived at the office...",
+     "{username} appeared at the office. Better late than never.. :-)"
     ];
 online_messages(evening) ->
     [
-     "~s is clearly on an interesting working schedule, he just came in!"
+     "{username} is clearly on an interesting working schedule, {heshe} just came in!"
     ].

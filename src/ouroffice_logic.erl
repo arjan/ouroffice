@@ -64,10 +64,10 @@ update_host(Host, First) ->
     All = ouroffice:get_env(mac_to_user, []),
     MacAddr = proplists:get_value(mac, Host),
     case proplists:lookup(MacAddr, All) of
-        {MacAddr, Username} ->
-            case buffalo:queue(ouroffice_notifier, user_offline, [Username], ouroffice:get_env(user_timeout, ?USER_TIMEOUT)) of
+        {MacAddr, User} ->
+            case buffalo:queue(ouroffice_notifier, user_offline, [User], ouroffice:get_env(user_timeout, ?USER_TIMEOUT)) of
                 {ok, new} ->
-                    ouroffice_notifier:user_online(Username, First);
+                    ouroffice_notifier:user_online(User, First);
                 {ok, existing} ->
                     nop
             end;
