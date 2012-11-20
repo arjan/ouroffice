@@ -54,12 +54,11 @@ handle_cast({notify_online, {Username, Gender}}, State) ->
     Reasons = online_messages(day_part()),
     Template = lists:nth(random:uniform(length(Reasons)), Reasons),
 
-    HeShe = case Gender of
-                m -> <<"he">>;
-                f -> <<"she">>
+    {HeShe, GuyGirl} = case Gender of
+                m -> {<<"he">>, <<"dude">>};
+                f -> {<<"she">>, <<"girl">>}
             end,
-
-    Replace = [{username, Username}, {heshe, HeShe}],
+    Replace = [{username, Username}, {heshe, HeShe}, {guygirl, GuyGirl}],
 
     Status = lists:foldl(fun({K, V}, Acc) ->
                                  re:replace(Acc, "{" ++ atom_to_list(K) ++ "}", V, [{return, list}])
