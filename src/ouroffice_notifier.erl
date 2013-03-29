@@ -39,8 +39,8 @@ user_online({Username, Gender}, false) ->
 user_online(User, false) ->
     gen_server:cast(?SERVER, {notify_online, User}).
 
-user_offline({Username, _Gender}) ->
-    lager:info("User offline.... ~p", [Username]).
+user_offline(User) ->
+    lager:info("User offline.... ~p", [User]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
