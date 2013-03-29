@@ -12,7 +12,7 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/0, get_hosts/0]).
+-export([start_link/0, get_hosts/0, macaddr/1]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -102,4 +102,15 @@ xml_attrib(Name, #xmlElement{attributes=Attrs}) ->
         [] -> undefined;
         [#xmlAttribute{value=Value}|_] ->
             list_to_binary(Value)
+    end.
+
+
+macaddr("127.0.0.1") ->
+    <<"localhost">>;
+macaddr(Addr) ->
+    X = os:cmd(binary_to_list(iolist_to_binary(["arp -a ", Addr]))),
+    case string:tokens(X, " ") of
+        [] -> undefined;
+        ["arp:"|_] -> undefined;
+        [_H, _, _, M|_] -> list_to_binary(M)
     end.

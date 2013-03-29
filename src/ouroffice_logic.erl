@@ -59,18 +59,23 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
 
-
 update_host(Host, First) ->
-    All = ouroffice:get_env(mac_to_user, []),
+    LookupFun = ouroffice:get_env(mac_lookup, fun lookup_user/1),
+    NotifierMod = ouroffice:get_env(notifier_module, ?MODULE),
     MacAddr = proplists:get_value(mac, Host),
-    case proplists:lookup(MacAddr, All) of
-        {MacAddr, User} ->
-            case buffalo:queue(ouroffice_notifier, user_offline, [User], ouroffice:get_env(user_timeout, ?USER_TIMEOUT)) of
+    case LookupFun(MacAddr) of
+        undefined ->
+            nop;
+        User ->
+            case buffalo:queue(NotifierMod, user_offline, [User], ouroffice:get_env(user_timeout, ?USER_TIMEOUT)) of
                 {ok, new} ->
-                    ouroffice_notifier:user_online(User, First);
+                    NotifierMod:user_online(User, First);
                 {ok, existing} ->
                     nop
-            end;
-        none ->
-            nop
+            end
     end.
+
+
+lookup_user(MacAddr) ->
+    All = ouroffice:get_env(mac_to_user, []),
+    proplists:get_value(MacAddr, All).

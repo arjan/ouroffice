@@ -33,8 +33,10 @@ user_online(User) ->
 
 user_online(_User, true) ->
     ignore;
+user_online({Username, Gender}, false) ->
+    %% backward comp
+    user_online([{name, Username}, {gender, Gender}], false);
 user_online(User, false) ->
-    lager:info("User online!!!! ~p", [User]),
     gen_server:cast(?SERVER, {notify_online, User}).
 
 user_offline({Username, _Gender}) ->
@@ -50,13 +52,16 @@ init(Args) ->
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
-handle_cast({notify_online, {Username, Gender}}, State) ->
+handle_cast({notify_online, User}, State) ->
+    Username = proplists:get_value(name, User),
+    Gender = proplists:get_value(gender, User),
     Reasons = online_messages(day_part()),
     Template = lists:nth(random:uniform(length(Reasons)), Reasons),
 
     {HeShe, GuyGirl} = case Gender of
-                m -> {<<"he">>, <<"dude">>};
-                f -> {<<"she">>, <<"girl">>}
+                           undefined -> {<<"it">>, <<"person">>};
+                           m -> {<<"he">>, <<"dude">>};
+                           f -> {<<"she">>, <<"girl">>}
             end,
     Replace = [{username, Username}, {heshe, HeShe}, {guygirl, GuyGirl}],
 
