@@ -57,20 +57,20 @@ handle_cast({notify_online, User}, State) ->
     Gender = proplists:get_value(gender, User),
     Reasons = online_messages(day_part()),
     Template = lists:nth(random:uniform(length(Reasons)), Reasons),
-
+lager:warning("Template: ~p", [Template]),
     {HeShe, GuyGirl} = case Gender of
                            undefined -> {<<"it">>, <<"person">>};
                            m -> {<<"he">>, <<"dude">>};
                            f -> {<<"she">>, <<"girl">>}
             end,
     Replace = [{username, Username}, {heshe, HeShe}, {guygirl, GuyGirl}],
-
+lager:warning("Replace: ~p", [Replace]),
     Status = lists:foldl(fun({K, V}, Acc) ->
                                  re:replace(Acc, "{" ++ atom_to_list(K) ++ "}", V, [{return, list}])
                          end,
                          Template,
                          Replace),
-                           
+lager:warning("Status: ~p", [Status]),                           
     twitter_status(Status),
     lager:info("Posted: ~s", [Status]),
     {noreply, State};
@@ -98,7 +98,7 @@ twitter_consumer() ->
 
 twitter_status(Update) ->
     case oauth:post("https://api.twitter.com/1.1/statuses/update.json",
-                    [{status, Update}],
+                    [{"status", Update}],
                     twitter_consumer(),
                     ouroffice:get_env(twitter_token, ""),
                     ouroffice:get_env(twitter_secret, "")) of
