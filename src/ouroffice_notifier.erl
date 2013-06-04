@@ -131,7 +131,7 @@ online_messages(night) ->
     
 online_messages(morning) ->
     ["{username} appeared at the office. Early start!",
-     "I see {username} is up early at @ouroffice... give that {guygirl} some coffee!",
+     "I see {username} came in early at the office... give that {guygirl} some coffee!",
      "Is {username} early for work, or did {heshe} never leave?"];
 online_messages(noon) ->
     ["Hey, {username} decided to do some work here. Just in time for lunch!",
