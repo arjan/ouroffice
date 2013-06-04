@@ -67,7 +67,7 @@ update_host(Host, First) ->
         undefined ->
             nop;
         User ->
-            case buffalo:queue(NotifierMod, user_offline, [User], ouroffice:get_env(user_timeout, ?USER_TIMEOUT)) of
+            case buffalo:queue(MacAddr, NotifierMod, user_offline, [User], ouroffice:get_env(user_timeout, ?USER_TIMEOUT)) of
                 {ok, new} ->
                     NotifierMod:user_online(User, First);
                 {ok, existing} ->
