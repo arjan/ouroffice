@@ -6,7 +6,7 @@
 
 -include_lib("xmerl/include/xmerl.hrl").
 
--record(state, {hosts=undefined}).
+-record(state, {hosts=undefined, ip_to_host=[]}).
 
 %% ------------------------------------------------------------------
 %% API Function Exports
@@ -30,7 +30,12 @@ start_link() ->
 
 get_hosts() ->
     gen_server:call(?SERVER, get_hosts, 30000).
-    
+
+macaddr(Addr) ->
+    {ok, Ip} = gen_server:call(?SERVER, {macaddr, Addr}),
+    Ip.
+
+
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
@@ -43,6 +48,17 @@ init(_Args) ->
 handle_call(get_hosts, _From, State=#state{hosts=Hosts}) ->
     {reply, {ok, Hosts}, State};
 
+handle_call({macaddr, "127.0.0.1"}, _From, State) ->
+    {reply, {ok, <<"localhost">>}, State};
+handle_call({macaddr, Addr}, _From, State=#state{ip_to_host=IpToHost}) ->
+    Reply = case proplists:lookup(Addr, IpToHost) of
+                {Addr, HostInfo} ->
+                    {ok, proplists:get_value(mac, HostInfo)};
+                none ->
+                    {ok, undefined}
+            end,
+    {reply, Reply, State};
+
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
@@ -53,9 +69,10 @@ handle_info(scan, State=#state{hosts=PrevHosts}) ->
     os:cmd("nmap -oX /tmp/ouroffice.xml -sP " ++ ouroffice:get_env(subnet, "192.168.10.0/24")),
     lager:debug("Scan done."),
     {RootElem, _} = xmerl_scan:file("/tmp/ouroffice.xml"),
-    Hosts = [hostinfo(H) || H <- xmerl_xpath:string("//host[status[@state=\"up\"]]", RootElem)],
+    Hosts = [hostinfo(H, State#state.ip_to_host) || H <- xmerl_xpath:string("//host[status[@state=\"up\"]]", RootElem)],
     ouroffice_logic:hosts_update(PrevHosts, Hosts),
-    {noreply, queue_scan(State#state{hosts=Hosts})};
+    IpToHostNew = [ {proplists:get_value(addr, I), I} || I <- Hosts],
+    {noreply, queue_scan(State#state{hosts=Hosts, ip_to_host=IpToHostNew})};
 
 handle_info(_Info, State) ->
     lager:warning("Unhandled info message: ~p", [_Info]),
@@ -78,7 +95,7 @@ queue_scan(State, T) ->
     erlang:send_after(T, self(), scan),
     State.
 
-hostinfo(HostElem) ->
+hostinfo(HostElem, IpToHost) ->
     [AddrElem] = xmerl_xpath:string("address", HostElem),
     Addr = xml_attrib(addr, AddrElem),
                
@@ -87,30 +104,24 @@ hostinfo(HostElem) ->
                            [HostnameElem|_] -> xml_attrib(name, HostnameElem)
                        end,
 
-    X = os:cmd(binary_to_list(iolist_to_binary(["arp -a ", Addr]))),
-    {Hostname, Mac} = case string:tokens(X, " ") of
-                          [] -> {FallbackHostname, undefined};
-                          ["arp:"|_] -> {FallbackHostname, undefined};
-                          [H, _, _, M|_] -> {list_to_binary(H), list_to_binary(M)}
-                      end,
-    [{addr, Addr},
-     {mac, Mac},
-     {hostname, Hostname}].
+    case proplists:lookup(Addr, IpToHost) of
+        {Addr, HostInfo} ->
+            HostInfo;
+        none ->
+            X = os:cmd(binary_to_list(iolist_to_binary(["arp -a ", Addr]))),
+            {Hostname, Mac} = case string:tokens(X, " ") of
+                                  [] -> {FallbackHostname, undefined};
+                                  ["arp:"|_] -> {FallbackHostname, undefined};
+                                  [H, _, _, M|_] -> {list_to_binary(H), list_to_binary(M)}
+                              end,
+            [{addr, Addr},
+             {mac, Mac},
+             {hostname, Hostname}]
+    end.
 
 xml_attrib(Name, #xmlElement{attributes=Attrs}) ->
     case lists:filter(fun(#xmlAttribute{name=Nm}) -> Nm =:= Name end, Attrs) of
         [] -> undefined;
         [#xmlAttribute{value=Value}|_] ->
             list_to_binary(Value)
-    end.
-
-
-macaddr("127.0.0.1") ->
-    <<"localhost">>;
-macaddr(Addr) ->
-    X = os:cmd(binary_to_list(iolist_to_binary(["arp -a ", Addr]))),
-    case string:tokens(X, " ") of
-        [] -> undefined;
-        ["arp:"|_] -> undefined;
-        [_H, _, _, M|_] -> list_to_binary(M)
     end.
