@@ -50,7 +50,8 @@ handle_call(get_hosts, _From, State=#state{hosts=Hosts}) ->
 
 handle_call({macaddr, "127.0.0.1"}, _From, State) ->
     {reply, {ok, <<"localhost">>}, State};
-handle_call({macaddr, Addr}, _From, State=#state{ip_to_host=IpToHost}) ->
+handle_call({macaddr, Addr0}, _From, State=#state{ip_to_host=IpToHost}) ->
+    Addr = z_convert:to_binary(Addr0),
     Reply = case proplists:lookup(Addr, IpToHost) of
                 {Addr, HostInfo} ->
                     {ok, proplists:get_value(mac, HostInfo)};
