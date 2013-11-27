@@ -66,6 +66,8 @@ update_host(Host, First) ->
     case LookupFun(MacAddr) of
         undefined ->
             nop;
+        [] ->
+            nop;
         User ->
             case buffalo:queue(MacAddr, NotifierMod, user_offline, [User], ouroffice:get_env(user_timeout, ?USER_TIMEOUT)) of
                 {ok, new} ->
