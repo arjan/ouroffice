@@ -32,7 +32,7 @@ get_hosts() ->
     gen_server:call(?SERVER, get_hosts, 30000).
 
 macaddr(Addr) ->
-    {ok, Ip} = gen_server:call(?SERVER, {macaddr, Addr}),
+    {ok, Ip} = gen_server:call(?SERVER, {macaddr, Addr}, 30000),
     Ip.
 
 
