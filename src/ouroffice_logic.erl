@@ -8,7 +8,7 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/0, hosts_update/2]).
+-export([start_link/0, hosts_update/2, user_online/2, user_offline/1]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -81,3 +81,12 @@ update_host(Host, First) ->
 lookup_user(MacAddr) ->
     All = ouroffice:get_env(mac_to_user, []),
     proplists:get_value(MacAddr, All).
+
+
+user_online(User, _First) ->
+    lager:warning("User online: ~p", [User]),
+    ok.
+
+user_offline(User) ->
+    lager:warning("User offline: ~p", [User]),
+    ok.

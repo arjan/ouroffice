@@ -6,7 +6,7 @@
 
 -include_lib("xmerl/include/xmerl.hrl").
 
--record(state, {hosts=undefined, ip_to_host=[]}).
+-record(state, {hosts=[], ip_to_host=[]}).
 
 %% ------------------------------------------------------------------
 %% API Function Exports
@@ -66,19 +66,15 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info(scan, State=#state{hosts=PrevHosts}) ->
-    Start = calendar:datetime_to_gregorian_seconds(calendar:local_time()),
-    os:cmd("sudo nmap -oX /tmp/ouroffice.xml -sP " ++ ouroffice:get_env(subnet, "192.168.10.0/24")),
-    {RootElem, _} = xmerl_scan:file("/tmp/ouroffice.xml"),
-    Hosts0 = [hostinfo(H, State#state.ip_to_host) || H <- xmerl_xpath:string("//host[status[@state=\"up\"]]", RootElem)],
-    Hosts = lists:filter(fun(undefined) -> false; (_) -> true end, Hosts0),
+handle_info(scan, State=#state{ip_to_host=IpToHost}) ->
+    Parent = self(),
+    proc_lib:spawn_link(fun() -> do_scan(Parent, IpToHost) end),
+    {noreply, State};
+
+handle_info({scan_done, Hosts, IpToHost}, State=#state{hosts=PrevHosts}) ->
+    lager:warning("scan_done: ~p", [scan_done]),
     ouroffice_logic:hosts_update(PrevHosts, Hosts),
-    IpToHostNew = [ {proplists:get_value(addr, I), I} || I <- Hosts],
-
-    Stop = calendar:datetime_to_gregorian_seconds(calendar:local_time()),
-    lager:info("Scan done. ~p hosts seen, took ~p secs.", [length(Hosts), Stop-Start]),
-
-    {noreply, queue_scan(State#state{hosts=Hosts, ip_to_host=IpToHostNew})};
+    {noreply, queue_scan(State#state{hosts=Hosts, ip_to_host=IpToHost})};
 
 handle_info(_Info, State) ->
     lager:warning("Unhandled info message: ~p", [_Info]),
@@ -100,6 +96,24 @@ queue_scan(State) ->
 queue_scan(State, T) ->
     erlang:send_after(T, self(), scan),
     State.
+
+
+do_scan(Parent, IpToHost) ->
+    Subnet = ouroffice:get_env(subnet, "192.168.10.0/24"),
+    lager:debug("Starting network scan of ~p", [Subnet]),
+    Start = calendar:datetime_to_gregorian_seconds(calendar:local_time()),
+    os:cmd("sudo nmap -oX /tmp/ouroffice.xml -sP " ++ Subnet),
+    {RootElem, _} = xmerl_scan:file("/tmp/ouroffice.xml"),
+    Hosts0 = [hostinfo(H, IpToHost) || H <- xmerl_xpath:string("//host[status[@state=\"up\"]]", RootElem)],
+    Hosts = lists:filter(fun(undefined) -> false; (_) -> true end, Hosts0),
+    IpToHostNew = [ {proplists:get_value(addr, I), I} || I <- Hosts],
+
+    Stop = calendar:datetime_to_gregorian_seconds(calendar:local_time()),
+    lager:info("Scan done. ~p hosts seen, took ~p secs.", [length(Hosts), Stop-Start]),
+
+    Parent ! {scan_done, Hosts, IpToHostNew},
+    ok.
+  
 
 hostinfo(HostElem, _IpToHost) ->
     [StatusElem] = xmerl_xpath:string("status", HostElem),
