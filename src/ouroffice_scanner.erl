@@ -67,12 +67,17 @@ handle_cast(_Msg, State) ->
     {noreply, State}.
 
 handle_info(scan, State=#state{hosts=PrevHosts}) ->
-    os:cmd("nmap -oX /tmp/ouroffice.xml -sP " ++ ouroffice:get_env(subnet, "192.168.10.0/24")),
-    lager:debug("Scan done."),
+    Start = calendar:datetime_to_gregorian_seconds(calendar:local_time()),
+    os:cmd("sudo nmap -oX /tmp/ouroffice.xml -sP " ++ ouroffice:get_env(subnet, "192.168.10.0/24")),
     {RootElem, _} = xmerl_scan:file("/tmp/ouroffice.xml"),
-    Hosts = [hostinfo(H, State#state.ip_to_host) || H <- xmerl_xpath:string("//host[status[@state=\"up\"]]", RootElem)],
+    Hosts0 = [hostinfo(H, State#state.ip_to_host) || H <- xmerl_xpath:string("//host[status[@state=\"up\"]]", RootElem)],
+    Hosts = lists:filter(fun(undefined) -> false; (_) -> true end, Hosts0),
     ouroffice_logic:hosts_update(PrevHosts, Hosts),
     IpToHostNew = [ {proplists:get_value(addr, I), I} || I <- Hosts],
+
+    Stop = calendar:datetime_to_gregorian_seconds(calendar:local_time()),
+    lager:info("Scan done. ~p hosts seen, took ~p secs.", [length(Hosts), Stop-Start]),
+
     {noreply, queue_scan(State#state{hosts=Hosts, ip_to_host=IpToHostNew})};
 
 handle_info(_Info, State) ->
@@ -96,28 +101,18 @@ queue_scan(State, T) ->
     erlang:send_after(T, self(), scan),
     State.
 
-hostinfo(HostElem, IpToHost) ->
-    [AddrElem] = xmerl_xpath:string("address", HostElem),
-    Addr = xml_attrib(addr, AddrElem),
-               
-    FallbackHostname = case xmerl_xpath:string("hostnames/hostname", HostElem) of
-                           [] -> undefined;
-                           [HostnameElem|_] -> xml_attrib(name, HostnameElem)
-                       end,
-
-    case proplists:lookup(Addr, IpToHost) of
-        {Addr, HostInfo} ->
-            HostInfo;
-        none ->
-            X = os:cmd(binary_to_list(iolist_to_binary(["arp -a ", Addr]))),
-            {Hostname, Mac} = case string:tokens(X, " ") of
-                                  [] -> {FallbackHostname, undefined};
-                                  ["arp:"|_] -> {FallbackHostname, undefined};
-                                  [H, _, _, M|_] -> {list_to_binary(H), list_to_binary(M)}
-                              end,
-            [{addr, Addr},
-             {mac, Mac},
-             {hostname, Hostname}]
+hostinfo(HostElem, _IpToHost) ->
+    [StatusElem] = xmerl_xpath:string("status", HostElem),
+    case xml_attrib(reason, StatusElem) =:= <<"arp-response">> andalso xml_attrib(state, StatusElem) =:= <<"up">> of
+        true ->
+            %% up
+            [IpElem] = xmerl_xpath:string("address[@addrtype=\"ipv4\"]", HostElem),
+            [MacElem] = xmerl_xpath:string("address[@addrtype=\"mac\"]", HostElem),
+            [{addr, xml_attrib(addr, IpElem)},
+             {mac, xml_attrib(addr, MacElem)}];
+        false ->
+            %% down
+            undefined
     end.
 
 xml_attrib(Name, #xmlElement{attributes=Attrs}) ->
