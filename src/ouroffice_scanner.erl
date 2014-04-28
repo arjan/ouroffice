@@ -123,7 +123,7 @@ hostinfo(HostElem, _IpToHost) ->
             [IpElem] = xmerl_xpath:string("address[@addrtype=\"ipv4\"]", HostElem),
             [MacElem] = xmerl_xpath:string("address[@addrtype=\"mac\"]", HostElem),
             [{addr, xml_attrib(addr, IpElem)},
-             {mac, xml_attrib(addr, MacElem)}];
+             {mac, z_string:to_lower(xml_attrib(addr, MacElem))}];
         false ->
             %% down
             undefined
