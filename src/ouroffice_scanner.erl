@@ -4,9 +4,12 @@
 
 -define(POLL_INTERVAL, 30000).
 
--include_lib("xmerl/include/xmerl.hrl").
-
 -record(state, {hosts=[], ip_to_host=[]}).
+
+-type host_result() :: {Mac::binary(), Addr::binary()}.
+
+-callback scan(Opts::term()) ->
+    [host_result()].
 
 %% ------------------------------------------------------------------
 %% API Function Exports
@@ -66,9 +69,9 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info(scan, State=#state{ip_to_host=IpToHost}) ->
+handle_info(scan, State) ->
     Parent = self(),
-    proc_lib:spawn_link(fun() -> do_scan(Parent, IpToHost) end),
+    proc_lib:spawn_link(fun() -> do_scan(Parent) end),
     {noreply, State};
 
 handle_info({scan_done, Hosts, IpToHost}, State=#state{hosts=PrevHosts}) ->
@@ -98,15 +101,21 @@ queue_scan(State, T) ->
     State.
 
 
-do_scan(Parent, IpToHost) ->
-    Subnet = ouroffice:get_env(subnet, "192.168.10.0/24"),
-    lager:debug("Starting network scan of ~p", [Subnet]),
+do_scan(Parent) ->
+
+    lager:debug("Starting network scan."),
     Start = calendar:datetime_to_gregorian_seconds(calendar:local_time()),
-    Output = os:cmd("sudo nmap -oX - -sP " ++ Subnet),
-    {RootElem, _} = xmerl_scan:string(Output),
-    file:write_file("/tmp/network.xml", Output),
-    Hosts0 = [hostinfo(H, IpToHost) || H <- xmerl_xpath:string("//host[status[@state=\"up\"]]", RootElem)],
-    Hosts = lists:filter(fun(undefined) -> false; (_) -> true end, Hosts0),
+    
+    Self = self(),
+    {ok, ScanModules} = application:get_env(ouroffice, scanners),
+    Workers = [spawn(fun() ->
+                             R = Module:scan(Config),
+                             Self ! {done, R}
+                     end)
+               || {Module, Config} <- ScanModules],
+                             
+    Hosts = lists:flatten([receive {done, Hosts} -> Hosts end || _ <- lists:seq(1, length(Workers))]),
+    
     IpToHostNew = [ {proplists:get_value(addr, I), I} || I <- Hosts],
 
     Stop = calendar:datetime_to_gregorian_seconds(calendar:local_time()),
@@ -116,23 +125,3 @@ do_scan(Parent, IpToHost) ->
     ok.
   
 
-hostinfo(HostElem, _IpToHost) ->
-    [StatusElem] = xmerl_xpath:string("status", HostElem),
-    case xml_attrib(reason, StatusElem) =:= <<"arp-response">> andalso xml_attrib(state, StatusElem) =:= <<"up">> of
-        true ->
-            %% up
-            [IpElem] = xmerl_xpath:string("address[@addrtype=\"ipv4\"]", HostElem),
-            [MacElem] = xmerl_xpath:string("address[@addrtype=\"mac\"]", HostElem),
-            [{addr, xml_attrib(addr, IpElem)},
-             {mac, z_convert:to_binary(z_string:to_lower(xml_attrib(addr, MacElem)))}];
-        false ->
-            %% down
-            undefined
-    end.
-
-xml_attrib(Name, #xmlElement{attributes=Attrs}) ->
-    case lists:filter(fun(#xmlAttribute{name=Nm}) -> Nm =:= Name end, Attrs) of
-        [] -> undefined;
-        [#xmlAttribute{value=Value}|_] ->
-            list_to_binary(Value)
-    end.
