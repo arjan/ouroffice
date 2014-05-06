@@ -114,7 +114,7 @@ do_scan(Parent) ->
                      end)
                || {Module, Config} <- ScanModules],
                              
-    Hosts = lists:flatten([receive {done, Hosts} -> Hosts end || _ <- lists:seq(1, length(Workers))]),
+    Hosts = flatten1([receive {done, Hosts} -> Hosts end || _ <- lists:seq(1, length(Workers))]),
     
     IpToHostNew = [ {proplists:get_value(addr, I), I} || I <- Hosts],
 
@@ -125,3 +125,13 @@ do_scan(Parent) ->
     ok.
   
 
+flatten1(R) ->
+    flatten1(R, []).
+
+flatten1([], Acc) ->
+    Acc;
+flatten1([List|Rest], Acc) ->
+    flatten1(Rest, List ++ Acc).
+
+
+    

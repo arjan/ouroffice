@@ -8,7 +8,7 @@
 -include_lib("xmerl/include/xmerl.hrl").
 
 scan(Opts) ->
-    Subnet = proplists:get_value_env(subnet, Opts, "192.168.10.0/24"),
+    Subnet = proplists:get_value(subnet, Opts, "192.168.10.0/24"),
     Output = os:cmd("sudo nmap -oX - -sP " ++ Subnet),
     {RootElem, _} = xmerl_scan:string(Output),
     file:write_file("/tmp/network.xml", Output),
